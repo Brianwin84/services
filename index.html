@@ -384,7 +384,7 @@ textarea.inp{resize:vertical;min-height:60px;}
           <button class="btn btn-s" id="btn-sheet" onclick="openSheetUrl()">Abrir planilla de Google</button>
           <button class="btn btn-s" id="btn-install" onclick="doInstall()" style="display:none">📲 Instalar app</button>
         </div>
-        <p class="muted" style="text-align:center;padding:4px 0 10px">Mis Vehículos · v3.2</p>
+        <p class="muted" style="text-align:center;padding:4px 0 10px">Mis Vehículos · v3.3</p>
       </div>
     </section>
   </main>
@@ -506,7 +506,7 @@ function api(action, d = {}) {
     const cb = 'cb_' + uid();
     url.searchParams.set('callback', cb);
     const sc = document.createElement('script');
-    const timer = setTimeout(() => { clean(); reject(new Error('Tiempo de espera agotado')); }, 20000);
+    const timer = setTimeout(() => { clean(); reject(new Error('Tiempo de espera agotado')); }, 30000);
     window[cb] = r => { clean(); resolve(r); };
     function clean() { clearTimeout(timer); delete window[cb]; sc.remove(); }
     sc.onerror = () => { clean(); reject(new Error('Error de red')); };
@@ -571,7 +571,7 @@ async function flush() {
   let done = 0, failed = false;
   while (S.queue.length) {
     const op = S.queue[0];
-    const payload = { ...op.data };
+    const payload = { ...op.data, opId: op.id }; // opId evita duplicados si se reintenta
     if (op.action === 'addServicio') delete payload.idRow;
     let res;
     try { res = await api(op.action, payload); }
