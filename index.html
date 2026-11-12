@@ -384,7 +384,7 @@ textarea.inp{resize:vertical;min-height:60px;}
           <button class="btn btn-s" id="btn-sheet" onclick="openSheetUrl()">Abrir planilla de Google</button>
           <button class="btn btn-s" id="btn-install" onclick="doInstall()" style="display:none">📲 Instalar app</button>
         </div>
-        <p class="muted" style="text-align:center;padding:4px 0 10px">Mis Vehículos · v3.0</p>
+        <p class="muted" style="text-align:center;padding:4px 0 10px">Mis Vehículos · v3.2</p>
       </div>
     </section>
   </main>
@@ -408,32 +408,32 @@ textarea.inp{resize:vertical;min-height:60px;}
 const SCRIPT_URL_DEFAULT = "https://script.google.com/macros/s/AKfycbyT9TLfi0z8fobzfIyfltHZ-UqisqYfiBf81_h7M_xSffokV8bDZL6HhS6nJl01J-8n/exec";
 const { normalPat, usaHoras, cleanFecha, parseFecha, diffDias, partes } = VTK;
 
-// ── Catálogo de servicios: [valor, etiqueta, meses, km, horas] ──
+// ── Catálogo de servicios: [valor, etiqueta, meses, km, horas] — 0 = no vence ──
 const CATALOGO = [
   { g:'🛢 Aceite y filtros', v:['*'], items:[
-    ['Cambio de aceite','Cambio de aceite',12,10000,100],['Filtro de aceite','Filtro de aceite',12,10000,100],
-    ['Filtro de aire','Filtro de aire',24,20000,200],['Filtro de combustible','Filtro combustible',24,20000,200],
-    ['Filtro de habitáculo','Filtro habitáculo',12,15000,0]]},
+    ['Cambio de aceite','Cambio de aceite',12,0,0],['Filtro de aceite','Filtro de aceite',12,0,0],
+    ['Filtro de aire','Filtro de aire',12,0,0],['Filtro de combustible','Filtro combustible',0,0,0],
+    ['Filtro de habitáculo','Filtro habitáculo',0,0,0]]},
   { g:'🛑 Frenos', v:['Automóvil','Moto','Aeronave'], items:[
-    ['Frenos — pastillas','Pastillas',24,30000,0],['Frenos — discos','Discos',0,60000,0],['Frenos — líquido','Líquido de frenos',24,0,0]]},
+    ['Frenos — pastillas','Pastillas',0,0,0],['Frenos — discos','Discos',0,0,0],['Frenos — líquido','Líquido de frenos',0,0,0]]},
   { g:'⚙️ Motor y transmisión', v:['*'], items:[
-    ['Correa de distribución','Correa distribución',48,60000,0],['Bujías','Bujías',24,30000,200],['Refrigerante','Refrigerante',24,40000,0],
-    ['Aceite de caja','Aceite de caja',48,60000,0],['Aceite de diferencial','Aceite diferencial',48,60000,0],['Correa de accesorios','Correa accesorios',48,60000,0]]},
+    ['Correa de distribución','Correa distribución',0,0,0],['Bujías','Bujías',0,0,0],['Refrigerante','Refrigerante',0,0,0],
+    ['Aceite de caja','Aceite de caja',0,0,0],['Aceite de diferencial','Aceite diferencial',0,0,0],['Correa de accesorios','Correa accesorios',0,0,0]]},
   { g:'🏍 Moto', v:['Moto'], items:[
-    ['Kit de arrastre','Kit de arrastre',0,20000,0],['Lubricación de cadena','Lubricar cadena',0,1000,0],['Tensado de cadena','Tensar cadena',0,1000,0]]},
+    ['Kit de arrastre','Kit de arrastre',0,0,0],['Lubricación de cadena','Lubricar cadena',0,0,0],['Tensado de cadena','Tensar cadena',0,0,0]]},
   { g:'🔵 Neumáticos y tren delantero', v:['Automóvil','Moto'], items:[
-    ['Cubiertas','Cubiertas',48,50000,0],['Alineación y balanceo','Alineación y balanceo',12,10000,0],['Rotación de cubiertas','Rotación',0,10000,0],['Amortiguadores','Amortiguadores',0,60000,0]]},
+    ['Cubiertas','Cubiertas',0,0,0],['Alineación y balanceo','Alineación y balanceo',0,0,0],['Rotación de cubiertas','Rotación',0,0,0],['Amortiguadores','Amortiguadores',0,0,0]]},
   { g:'⚓ Motor marino', v:['Embarcación'], items:[
-    ['Impeller / Bomba de agua','Impeller',12,0,200],['Anodos de zinc','Ánodos de zinc',12,0,0],['Hélice','Hélice',24,0,0],
-    ['Aceite de cola','Aceite de cola',12,0,100],['Pintura antiincrustante','Antiincrustante',12,0,0],['Bomba de achique','Bomba de achique',12,0,0]]},
+    ['Impeller / Bomba de agua','Impeller',0,0,0],['Anodos de zinc','Ánodos de zinc',0,0,0],['Hélice','Hélice',0,0,0],
+    ['Aceite de cola','Aceite de cola',0,0,0],['Pintura antiincrustante','Antiincrustante',0,0,0],['Bomba de achique','Bomba de achique',0,0,0]]},
   { g:'✈️ Aviación', v:['Aeronave'], items:[
-    ['Inspección de 100hs','Inspección 100hs',12,0,100],['Revisión anual','Revisión anual',12,0,0],['Bujías de aviación','Bujías aviación',0,0,100],['Overhaul motor','Overhaul',0,0,2000]]},
+    ['Inspección de 100hs','Inspección 100hs',0,0,0],['Revisión anual','Revisión anual',0,0,0],['Bujías de aviación','Bujías aviación',0,0,0],['Overhaul motor','Overhaul',0,0,0]]},
   { g:'🔋 Eléctrico', v:['*'], items:[
-    ['Batería','Batería',36,0,0],['Lámparas','Lámparas',0,0,0],['Aire acondicionado','Aire acondicionado',24,0,0]]},
+    ['Batería','Batería',0,0,0],['Lámparas','Lámparas',0,0,0],['Aire acondicionado','Aire acondicionado',0,0,0]]},
   { g:'📄 Documentación', v:['*'], items:[
-    ['VTV / Inspección técnica','VTV / RTO',12,0,0],['Seguro','Seguro',12,0,0],['Matafuegos','Matafuegos',12,0,0],['Habilitación / Licencia','Habilitación',12,0,0]]},
+    ['VTV / Inspección técnica','VTV / RTO',0,0,0],['Seguro','Seguro',0,0,0],['Matafuegos','Matafuegos',0,0,0],['Habilitación / Licencia','Habilitación',0,0,0]]},
   { g:'📋 General', v:['*'], items:[
-    ['Revisión general','Revisión general',12,0,0],['Servicio menor','Service menor',12,10000,100],['Servicio mayor','Service mayor',24,30000,300]]},
+    ['Revisión general','Revisión general',0,0,0],['Servicio menor','Service menor',0,0,0],['Servicio mayor','Service mayor',0,0,0]]},
 ];
 const CAT_MAP = {}; CATALOGO.forEach(gr => gr.items.forEach(it => CAT_MAP[it[0]] = it));
 const TIPOS_VEH = [['Automóvil','🚗','Auto','b-auto'],['Moto','🏍','Moto','b-moto'],['Embarcación','⛵','Barco','b-emb'],['Aeronave','✈️','Avión','b-aero']];
@@ -786,7 +786,7 @@ function renderCarDetail() {
 
   // estado por ítem
   const items = Object.entries(ult).filter(([k]) => k.startsWith(normalPat(v.patente) + '|'))
-    .map(([k, s]) => ({ nombre: partes(s.tipo).find(p => p.toLowerCase() === k.split('|')[1]) || k.split('|')[1], s, e: VTK.estado(data(), s, cfgCalc()) }))
+    .map(([k, s]) => { const e = VTK.estado(data(), s, cfgCalc()); if (!set.has(String(s.idRow))) e.level = 'none'; return { nombre: partes(s.tipo).find(p => p.toLowerCase() === k.split('|')[1]) || k.split('|')[1], s, e }; })
     .sort((a, b) => ({venc:0,prox:1,ok:2,none:3}[a.e.level] - {venc:0,prox:1,ok:2,none:3}[b.e.level]) || a.nombre.localeCompare(b.nombre));
 
   $('car-detail').innerHTML = `
