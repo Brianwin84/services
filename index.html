@@ -384,7 +384,7 @@ textarea.inp{resize:vertical;min-height:60px;}
           <button class="btn btn-s" id="btn-sheet" onclick="openSheetUrl()">Abrir planilla de Google</button>
           <button class="btn btn-s" id="btn-install" onclick="doInstall()" style="display:none">📲 Instalar app</button>
         </div>
-        <p class="muted" style="text-align:center;padding:4px 0 10px">Mis Vehículos · v3.3</p>
+        <p class="muted" style="text-align:center;padding:4px 0 10px">Mis Vehículos · v3.4</p>
       </div>
     </section>
   </main>
@@ -674,12 +674,13 @@ function svcCard(s, opts = {}) {
     : lvl === 'ok' ? '<span class="badge b-ok">Al día</span>'
     : lvl === 'old' ? '<span class="badge b-old">Reemplazado</span>' : '';
   const u = e.unidad;
+  const pf = VTK.proxFechaEf(s);
   const items = partes(s.tipo);
   const tit = items.length > 2 ? `${esc(items[0])}, ${esc(items[1])} <span style="color:var(--texto-sec);font-weight:500">+${items.length-2}</span>` : esc(items.join(' + '));
   const prog = activo && e.prog !== null && lvl !== 'none'
     ? `<div class="bar"><i style="width:${Math.round(e.prog*100)}%;background:${lvl==='venc'?'var(--rojo)':lvl==='prox'?'#E0A800':'var(--verde-med)'}"></i></div>` : '';
   const sub2 = activo && (lvl === 'venc' || lvl === 'prox') ? `<div class="t3" style="color:${lvl==='venc'?'var(--rojo)':'var(--ambar)'};font-weight:600">${VTK.textoEstado(e)}</div>`
-    : `<div class="t3">${s.proxFecha ? 'Próx: ' + fmtDate(s.proxFecha) : ''}${s.proxFecha && Number(s.proxKm) ? ' · ' : ''}${Number(s.proxKm) ? fmtNum(s.proxKm) + ' ' + u : ''}${!s.proxFecha && !Number(s.proxKm) ? 'Sin vencimiento' : ''}</div>`;
+    : `<div class="t3">${pf ? 'Próx: ' + fmtDate(pf) : ''}${pf && Number(s.proxKm) ? ' · ' : ''}${Number(s.proxKm) ? fmtNum(s.proxKm) + ' ' + u : ''}${!pf && !Number(s.proxKm) ? 'Sin vencimiento' : ''}</div>`;
   return `<div class="card tap stripe ${activo ? lvl : ''}" onclick="openSvcSheet('${esc(s.idRow)}')">
     <div class="row">
       ${opts.icon ? `<div class="vicon" style="width:36px;height:36px;font-size:18px">${vIcon(car(s.patente)?.tipoVeh)}</div>` : ''}
@@ -878,7 +879,7 @@ function openSvcSheet(idRow) {
     <div class="tags">${partes(s.tipo).map(p => `<span class="tag">${esc(p)}</span>`).join('')}</div>
     <div class="kv"><span>Estado</span><span>${lvTxt}${activo && (lv==='venc'||lv==='prox') ? '<br><small style="color:var(--texto-sec)">' + VTK.textoEstado(e) + '</small>' : ''}</span></div>
     <div class="kv"><span>Realizado</span><span>${fmtDate(s.fecha)}${s.km !== '' && s.km != null ? ' · ' + fmtNum(s.km) + ' ' + u : ''}</span></div>
-    <div class="kv"><span>Próximo</span><span>${s.proxFecha ? fmtDate(s.proxFecha) : '—'}${Number(s.proxKm) ? ' · ' + fmtNum(s.proxKm) + ' ' + u : ''}</span></div>
+    <div class="kv"><span>Próximo</span><span>${VTK.proxFechaEf(s) ? fmtDate(s.proxFecha) : (Number(s.proxKm) ? 'Solo por ' + u : '—')}${Number(s.proxKm) ? ' · ' + fmtNum(s.proxKm) + ' ' + u : ''}</span></div>
     ${Number(s.costo) ? `<div class="kv"><span>Costo</span><span>${fmtMoney(s.costo)}</span></div>` : ''}
     ${s.taller ? `<div class="kv"><span>Taller</span><span>${esc(s.taller)}</span></div>` : ''}
     ${s.notas ? `<div class="kv"><span>Notas</span><span style="font-weight:400">${esc(s.notas)}</span></div>` : ''}
@@ -886,7 +887,7 @@ function openSvcSheet(idRow) {
     <div class="btn-grid">
       <button class="btn btn-p" onclick="closeSheet();setTimeout(()=>openSvcForm(null,'${esc(s.patente)}','${esc(s.idRow)}'),60)">🔁 Registrar nuevo</button>
       <button class="btn btn-s" onclick="closeSheet();setTimeout(()=>openSvcForm('${esc(s.idRow)}'),60)">✏️ Editar</button>
-      ${s.proxFecha ? `<button class="btn btn-s" onclick="addToCalendar('${esc(s.idRow)}')">📅 Calendario</button>` : ''}
+      ${VTK.proxFechaEf(s) ? `<button class="btn btn-s" onclick="addToCalendar('${esc(s.idRow)}')">📅 Calendario</button>` : ''}
       <button class="btn btn-s" onclick="openCarFromSheet('${esc(s.patente)}')">${vIcon(v?.tipoVeh)} Ver vehículo</button>
     </div>
     <button class="btn btn-d" style="margin-top:8px" onclick="closeSheet();setTimeout(()=>{S.editSvc='${esc(s.idRow)}';deleteSvc()},60)">🗑 Eliminar</button>
@@ -1056,6 +1057,7 @@ function suggest() {
 }
 
 function saveSvc() {
+  if ($('fs-pfecha').value && !VTK.vencePorTiempo({ tipo:getAllSel().join(' + ') })) $('fs-pfecha').value = '';
   const pat = $('fs-pat').value, sel = getAllSel(), fecha = $('fs-fecha').value;
   if (!pat) { toast('⚠️ Elegí un vehículo'); return; }
   if (!sel.length) { toast('⚠️ Marcá al menos un ítem'); return; }
