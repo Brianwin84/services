@@ -37,7 +37,20 @@
         if (!u || fs > fu || (fs === fu && rowN(s) > rowN(u))) ult[k] = s;
       });
     });
-    const set = new Set(); Object.values(ult).forEach(s => set.add(String(s.idRow)));
+    // Un service queda "reemplazado" si hay uno más nuevo del mismo vehículo
+    // que repite al menos uno de sus ítems (ej: un nuevo cambio de aceite).
+    const set = new Set();
+    const porVeh = {};
+    (data.servicios || []).forEach(s => { const p = normalPat(s.patente); (porVeh[p] = porVeh[p] || []).push(s); });
+    Object.values(porVeh).forEach(list => {
+      list.sort((a, b) => (cleanFecha(b.fecha) || '').localeCompare(cleanFecha(a.fecha) || '') || rowN(b) - rowN(a));
+      const vistos = new Set();
+      list.forEach(s => {
+        const its = partes(s.tipo).map(x => x.toLowerCase());
+        if (!its.some(i => vistos.has(i))) set.add(String(s.idRow));
+        its.forEach(i => vistos.add(i));
+      });
+    });
     return { set, ult };
   }
 
