@@ -1,14 +1,16 @@
 /* Mis Vehículos — Service Worker v3 */
-const VERSION = 'vtk-v3.0.0';
+const VERSION = 'vtk-v3.0.1';
 const SHELL = ['./', './index.html', './core.js', './manifest.webmanifest',
-  './icons/icon-192.png', './icons/icon-512.png', './icons/maskable-512.png', './icons/badge-96.png'];
+  './icon-192.png', './icon-512.png', './maskable-512.png', './badge-96.png'];
 const STATE_CACHE = 'vtk-state';
 const STATE_URL = './__state';
 
 importScripts('./core.js');
 
 self.addEventListener('install', e => {
-  e.waitUntil(caches.open(VERSION).then(c => c.addAll(SHELL)).then(() => self.skipWaiting()));
+  e.waitUntil(caches.open(VERSION)
+    .then(c => Promise.allSettled(SHELL.map(u => c.add(u))))
+    .then(() => self.skipWaiting()));
 });
 
 self.addEventListener('activate', e => {
@@ -82,7 +84,7 @@ async function checkAndNotify(force) {
     : 'No hay mantenimientos pendientes.';
   await self.registration.showNotification(title, {
     body, tag: 'vtk-alertas', renotify: true,
-    icon: './icons/icon-192.png', badge: './icons/badge-96.png',
+    icon: './icon-192.png', badge: './badge-96.png',
     data: { url: './?tab=home' }
   });
 }
