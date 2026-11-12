@@ -1,5 +1,5 @@
 /* Mis Vehículos — Service Worker v3 */
-const VERSION = 'vtk-v3.3.0';
+const VERSION = 'vtk-v3.4.1';
 const SHELL = ['./', './index.html', './core.js', './manifest.webmanifest',
   './icon-192.png', './icon-512.png', './maskable-512.png', './badge-96.png'];
 const STATE_CACHE = 'vtk-state';
@@ -30,7 +30,7 @@ self.addEventListener('fetch', e => {
     const cache = await caches.open(VERSION);
     try {
       const r = await Promise.race([
-        fetch(e.request, { cache: 'no-cache' }),
+        fetch(new Request(e.request.url, { cache: 'no-cache' })),
         new Promise((_, ko) => setTimeout(() => ko(new Error('timeout')), 5000))
       ]);
       if (r && r.ok) { cache.put(e.request, r.clone()); return r; }
