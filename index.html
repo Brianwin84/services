@@ -7,8 +7,8 @@
 <meta name="description" content="Seguimiento de services y vencimientos de vehículos, motos, embarcaciones y aeronaves.">
 <meta name="theme-color" content="#1A6B3C">
 <link rel="manifest" href="manifest.webmanifest">
-<link rel="icon" href="icons/icon-192.png">
-<link rel="apple-touch-icon" href="icons/icon-192.png">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -1157,7 +1157,7 @@ async function testNotif() {
   if (!('Notification' in window) || Notification.permission !== 'granted') { if (!(await enableNotif())) return; }
   const reg = await swReg();
   if (reg && reg.active) reg.active.postMessage({ type:'check', force:true });
-  else new Notification('Mis Vehículos', { body:'Las notificaciones funcionan ✅', icon:'icons/icon-192.png' });
+  else new Notification('Mis Vehículos', { body:'Las notificaciones funcionan ✅', icon:'icon-192.png' });
 }
 async function maybeNotify() {
   if (S.cfg.notif === false || !('Notification' in window) || Notification.permission !== 'granted') return;
