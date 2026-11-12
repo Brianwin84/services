@@ -1,0 +1,39 @@
+MIS VEHÍCULOS v3 — App instalable (PWA)
+========================================
+
+CONTENIDO
+  index.html, core.js, sw.js, manifest.webmanifest, icons/  -> la app (se publican juntos)
+  Code_v3.gs                                                -> backend para tu planilla de Google
+
+1) ACTUALIZAR EL SCRIPT DE LA PLANILLA (cuenta Gmail personal)
+   - Abrí la planilla > Extensiones > Apps Script.
+   - Reemplazá todo el contenido de Code.gs por Code_v3.gs y guardá.
+   - Elegí la función "instalarAlertas" y tocá Ejecutar (aceptá permisos).
+     -> Te llega un mail diario a las 8 hs con lo vencido / por vencer.
+   - Implementar > Gestionar implementaciones > lápiz > Versión: "Nueva versión" > Implementar.
+     (Ejecutar como: Yo · Acceso: Cualquier usuario). La URL /exec sigue siendo la misma.
+   - Se agregan solas las columnas "Km actual / Fecha km" (Vehículos) y "Costo / Taller" (Servicios).
+
+2) PUBLICAR LA APP (gratis, necesita HTTPS para instalarse)
+   Opción fácil: https://app.netlify.com/drop -> arrastrá la carpeta "MisVehiculos_v3" completa.
+   Opción GitHub Pages: subí los archivos a un repo > Settings > Pages > Deploy from branch.
+
+3) INSTALAR EN EL CELULAR
+   Android (Chrome): abrí la URL > banner "Instalar" (o menú ⋮ > Instalar app).
+     Chrome genera una WebAPK: queda como app nativa, con ícono y accesos directos.
+   iPhone (Safari, iOS 16.4+): Compartir > "Agregar a pantalla de inicio".
+   Luego en la app: Ajustes > Notificaciones = activadas.
+
+   ¿Querés un .apk para instalar sin navegador? Entrá a https://www.pwabuilder.com,
+   pegá la URL publicada > Package for stores > Android > descargá el .apk firmado.
+
+AVISOS DE VENCIMIENTO (3 capas)
+   - Notificación en el celular: 1 resumen por día al abrir la app y, en Android con la app
+     instalada, también en segundo plano (Chrome decide la frecuencia, ~1 vez al día).
+   - Mail diario desde la planilla (no depende del celular).
+   - Botón "📅 Calendario" en cada service: crea el evento en Google Calendar con su recordatorio.
+   Se avisa por fecha Y por km/horas (márgenes configurables en Ajustes).
+
+SEGURIDAD OPCIONAL
+   Apps Script > Configuración del proyecto > Propiedades del script > API_KEY = tu clave.
+   Poné la misma clave en Ajustes de la app.
