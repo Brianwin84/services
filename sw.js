@@ -1,5 +1,5 @@
 /* Mis Vehículos — Service Worker v3 */
-const VERSION = 'vtk-v3.0.1';
+const VERSION = 'vtk-v3.2.0';
 const SHELL = ['./', './index.html', './core.js', './manifest.webmanifest',
   './icon-192.png', './icon-512.png', './maskable-512.png', './badge-96.png'];
 const STATE_CACHE = 'vtk-state';
