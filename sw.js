@@ -1,113 +1,119 @@
-/* Mis Vehículos — lógica compartida entre la app y el service worker */
-(function (g) {
-  const normalPat = p => String(p || '').replace(/\s+/g, '').toUpperCase();
-  const usaHoras = t => t === 'Embarcación' || t === 'Aeronave';
+/* Mis Vehículos — Service Worker v3 */
+const VERSION = 'vtk-v3.3.0';
+const SHELL = ['./', './index.html', './core.js', './manifest.webmanifest',
+  './icon-192.png', './icon-512.png', './maskable-512.png', './badge-96.png'];
+const STATE_CACHE = 'vtk-state';
+const STATE_URL = './__state';
 
-  function cleanFecha(str) {
-    if (!str || String(str).trim() === '' || /ERROR|Invalid|S\/F|undefined/.test(str)) return '';
-    return String(str).substring(0, 10);
-  }
-  function parseFecha(str) {
-    const s = cleanFecha(str); if (!s) return null;
-    const d = new Date(s + 'T12:00:00'); return isNaN(d.getTime()) ? null : d;
-  }
-  function hoy0() { const d = new Date(); d.setHours(12, 0, 0, 0); return d; }
-  function diffDias(d, base) { return Math.round((d - (base || hoy0())) / 86400000); }
-  function num(v) { if (v === '' || v === null || v === undefined) return null; const n = Number(v); return isNaN(n) ? null : n; }
-  function rowN(s) { const n = Number(s.idRow); return isNaN(n) ? Infinity : n; }
-  // Únicos ítems que vencen por TIEMPO; el resto vence solo por km/horas (si tiene km límite)
-  const VENCEN_POR_TIEMPO = ['cambio de aceite', 'filtro de aceite', 'filtro de aire'];
-  function vencePorTiempo(s) { return partes(s.tipo).some(p => VENCEN_POR_TIEMPO.includes(p.toLowerCase())); }
-  function proxFechaEf(s) { return vencePorTiempo(s) ? cleanFecha(s.proxFecha) : ''; }
-  function partes(tipo) { return String(tipo || '').split('+').map(s => s.trim()).filter(Boolean); }
+importScripts('./core.js');
 
-  /** km/hs actual: máximo entre el registrado y el de cualquier servicio */
-  function kmActual(data, pat) {
-    const p = normalPat(pat);
-    const v = (data.vehiculos || []).find(x => normalPat(x.patente) === p);
-    let km = v ? (num(v.kmActual) || 0) : 0;
-    (data.servicios || []).forEach(s => { if (normalPat(s.patente) === p) { const k = num(s.km); if (k && k > km) km = k; } });
-    return km;
-  }
+self.addEventListener('install', e => {
+  e.waitUntil(caches.open(VERSION)
+    .then(c => Promise.allSettled(SHELL.map(u => fetch(u, { cache: 'reload' }).then(r => r.ok && c.put(u, r)))))
+    .then(() => self.skipWaiting()));
+});
 
-  /** Un servicio está "activo" si es el más reciente para al menos uno de sus ítems */
-  function activos(data) {
-    const ult = {};
-    (data.servicios || []).forEach(s => {
-      partes(s.tipo).forEach(c => {
-        const k = normalPat(s.patente) + '|' + c.toLowerCase();
-        const u = ult[k];
-        const fs = cleanFecha(s.fecha), fu = u && cleanFecha(u.fecha);
-        if (!u || fs > fu || (fs === fu && rowN(s) > rowN(u))) ult[k] = s;
-      });
-    });
-    // Un service queda "reemplazado" si hay uno más nuevo del mismo vehículo
-    // que repite al menos uno de sus ítems (ej: un nuevo cambio de aceite).
-    const set = new Set();
-    const porVeh = {};
-    (data.servicios || []).forEach(s => { const p = normalPat(s.patente); (porVeh[p] = porVeh[p] || []).push(s); });
-    Object.values(porVeh).forEach(list => {
-      list.sort((a, b) => (cleanFecha(b.fecha) || '').localeCompare(cleanFecha(a.fecha) || '') || rowN(b) - rowN(a));
-      const vistos = new Set();
-      list.forEach(s => {
-        const its = partes(s.tipo).map(x => x.toLowerCase());
-        if (!its.some(i => vistos.has(i))) set.add(String(s.idRow));
-        its.forEach(i => vistos.add(i));
-      });
-    });
-    return { set, ult };
-  }
+self.addEventListener('activate', e => {
+  e.waitUntil(
+    caches.keys().then(keys => Promise.all(keys.filter(k => k !== VERSION && k !== STATE_CACHE).map(k => caches.delete(k))))
+      .then(() => self.clients.claim())
+  );
+});
 
-  /** Estado de un servicio: level = venc | prox | ok | none */
-  function estado(data, s, cfg) {
-    const v = (data.vehiculos || []).find(x => normalPat(x.patente) === normalPat(s.patente));
-    const hs = usaHoras(v && v.tipoVeh);
-    const unidad = hs ? 'hs' : 'km';
-    const margen = hs ? (cfg.margenHs || 20) : (cfg.margenKm || 1000);
-    const dAviso = cfg.diasAviso || 30;
-    const pf = parseFecha(proxFechaEf(s));
-    const dias = pf ? diffDias(pf) : null;
-    const pk = num(s.proxKm);
-    const act = kmActual(data, s.patente);
-    const rest = (pk && pk > 0 && act) ? pk - act : null;
-
-    let level = 'none';
-    if (dias !== null || rest !== null) level = 'ok';
-    if ((dias !== null && dias <= dAviso) || (rest !== null && rest <= margen)) level = 'prox';
-    if ((dias !== null && dias < 0) || (rest !== null && rest <= 0)) level = 'venc';
-
-    // progreso consumido (0..1) — el más crítico entre fecha y km
-    let prog = null;
-    const f0 = parseFecha(s.fecha);
-    if (f0 && pf && pf > f0) prog = Math.max(0, Math.min(1, (hoy0() - f0) / (pf - f0)));
-    const k0 = num(s.km);
-    if (pk && k0 !== null && pk > k0 && act) {
-      const pk2 = Math.max(0, Math.min(1, (act - k0) / (pk - k0)));
-      prog = prog === null ? pk2 : Math.max(prog, pk2);
+// App shell: cache primero, actualiza en segundo plano. La API (Google) nunca se cachea acá.
+self.addEventListener('fetch', e => {
+  const url = new URL(e.request.url);
+  if (e.request.method !== 'GET' || url.origin !== location.origin) return;
+  if (url.pathname.endsWith('/__state')) return;
+  // Red primero (así cada cambio subido a GitHub se ve al toque); sin señal, usa la copia guardada
+  e.respondWith((async () => {
+    const cache = await caches.open(VERSION);
+    try {
+      const r = await Promise.race([
+        fetch(e.request, { cache: 'no-cache' }),
+        new Promise((_, ko) => setTimeout(() => ko(new Error('timeout')), 5000))
+      ]);
+      if (r && r.ok) { cache.put(e.request, r.clone()); return r; }
+      throw new Error('bad');
+    } catch (err) {
+      const hit = await cache.match(e.request, { ignoreSearch: true });
+      return hit || (e.request.mode === 'navigate' ? cache.match('./index.html') : Response.error());
     }
-    return { level, dias, rest, unidad, prog, kmAct: act };
-  }
+  })());
+});
 
-  /** Alertas: servicios activos vencidos o próximos, ordenados por urgencia */
-  function alertas(data, cfg) {
-    const { set } = activos(data);
-    const out = [];
-    (data.servicios || []).forEach(s => {
-      if (!set.has(String(s.idRow))) return;
-      const e = estado(data, s, cfg);
-      if (e.level === 'venc' || e.level === 'prox') out.push({ s, e });
-    });
-    const score = x => (x.e.level === 'venc' ? -100000 : 0) +
-      Math.min(x.e.dias === null ? 99999 : x.e.dias, x.e.rest === null ? 99999 : x.e.rest / 50);
-    return out.sort((a, b) => score(a) - score(b));
-  }
+// ── Estado compartido con la página (config + datos + último aviso) ──
+async function readState() {
+  const c = await caches.open(STATE_CACHE);
+  const r = await c.match(STATE_URL);
+  return r ? r.json() : null;
+}
+async function writeState(st) {
+  const c = await caches.open(STATE_CACHE);
+  await c.put(STATE_URL, new Response(JSON.stringify(st), { headers: { 'Content-Type': 'application/json' } }));
+}
 
-  function textoEstado(e) {
-    const t = [];
-    if (e.dias !== null) t.push(e.dias < 0 ? `vencido hace ${-e.dias} d` : e.dias === 0 ? 'vence hoy' : `faltan ${e.dias} d`);
-    if (e.rest !== null) t.push(e.rest <= 0 ? `excedido ${Math.abs(e.rest).toLocaleString('es-AR')} ${e.unidad}` : `faltan ${e.rest.toLocaleString('es-AR')} ${e.unidad}`);
-    return t.join(' · ');
-  }
+function hoyStr() {
+  const d = new Date();
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
 
-  g.VTK = { vencePorTiempo, proxFechaEf, normalPat, usaHoras, cleanFecha, parseFecha, diffDias, hoy0, num, partes, kmActual, activos, estado, alertas, textoEstado };
-})(typeof self !== 'undefined' ? self : window);
+async function checkAndNotify(force) {
+  const st = await readState();
+  if (!st || !st.cfg) return;
+  if (!force && st.lastNotified === hoyStr()) return;
+  if (!force && st.cfg.notif === false) return;
+
+  // intenta traer datos frescos
+  if (st.cfg.apiUrl) {
+    try {
+      const u = new URL(st.cfg.apiUrl);
+      u.searchParams.set('action', 'getAll');
+      if (st.cfg.apiKey) u.searchParams.set('key', st.cfg.apiKey);
+      const r = await fetch(u.toString(), { redirect: 'follow' });
+      const d = await r.json();
+      if (d && !d.error) st.data = { vehiculos: d.vehiculos || [], servicios: d.servicios || [] };
+    } catch (e) { /* offline: usa los datos guardados */ }
+  }
+  const list = VTK.alertas(st.data || {}, st.cfg);
+  st.lastNotified = hoyStr();
+  await writeState(st);
+  if (!list.length && !force) return;
+
+  const venc = list.filter(x => x.e.level === 'venc').length;
+  const title = list.length
+    ? (venc ? `⚠️ ${venc} mantenimiento${venc > 1 ? 's' : ''} vencido${venc > 1 ? 's' : ''}` : `🔧 ${list.length} mantenimiento${list.length > 1 ? 's' : ''} por vencer`)
+    : '✅ Todo al día';
+  const body = list.length
+    ? list.slice(0, 4).map(x => `${x.s.patente}: ${x.s.tipo.split('+')[0].trim()}${VTK.partes(x.s.tipo).length > 1 ? ' +' : ''} — ${VTK.textoEstado(x.e)}`).join('\n') +
+      (list.length > 4 ? `\n…y ${list.length - 4} más` : '')
+    : 'No hay mantenimientos pendientes.';
+  await self.registration.showNotification(title, {
+    body, tag: 'vtk-alertas', renotify: true,
+    icon: './icon-192.png', badge: './badge-96.png',
+    data: { url: './?tab=home' }
+  });
+}
+
+self.addEventListener('periodicsync', e => {
+  if (e.tag === 'vtk-check') e.waitUntil(checkAndNotify(false));
+});
+self.addEventListener('sync', e => {
+  if (e.tag === 'vtk-check') e.waitUntil(checkAndNotify(false));
+});
+self.addEventListener('message', e => {
+  const m = e.data || {};
+  if (m.type === 'check') e.waitUntil(checkAndNotify(!!m.force));
+  if (m.type === 'skipWaiting') self.skipWaiting();
+});
+
+self.addEventListener('notificationclick', e => {
+  e.notification.close();
+  const target = new URL((e.notification.data && e.notification.data.url) || './', self.registration.scope).href;
+  e.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(list => {
+      for (const c of list) { if ('focus' in c) { c.postMessage({ type: 'goto', tab: 'home' }); return c.focus(); } }
+      return self.clients.openWindow(target);
+    })
+  );
+});
