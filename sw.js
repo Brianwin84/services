@@ -1,5 +1,5 @@
 /* Mis Vehículos — Service Worker v3 */
-const VERSION = 'vtk-v3.2.0';
+const VERSION = 'vtk-v3.3.0';
 const SHELL = ['./', './index.html', './core.js', './manifest.webmanifest',
   './icon-192.png', './icon-512.png', './maskable-512.png', './badge-96.png'];
 const STATE_CACHE = 'vtk-state';
@@ -9,7 +9,7 @@ importScripts('./core.js');
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(VERSION)
-    .then(c => Promise.allSettled(SHELL.map(u => c.add(u))))
+    .then(c => Promise.allSettled(SHELL.map(u => fetch(u, { cache: 'reload' }).then(r => r.ok && c.put(u, r)))))
     .then(() => self.skipWaiting()));
 });
 
@@ -25,15 +25,21 @@ self.addEventListener('fetch', e => {
   const url = new URL(e.request.url);
   if (e.request.method !== 'GET' || url.origin !== location.origin) return;
   if (url.pathname.endsWith('/__state')) return;
-  e.respondWith(
-    caches.open(VERSION).then(async cache => {
+  // Red primero (así cada cambio subido a GitHub se ve al toque); sin señal, usa la copia guardada
+  e.respondWith((async () => {
+    const cache = await caches.open(VERSION);
+    try {
+      const r = await Promise.race([
+        fetch(e.request, { cache: 'no-cache' }),
+        new Promise((_, ko) => setTimeout(() => ko(new Error('timeout')), 5000))
+      ]);
+      if (r && r.ok) { cache.put(e.request, r.clone()); return r; }
+      throw new Error('bad');
+    } catch (err) {
       const hit = await cache.match(e.request, { ignoreSearch: true });
-      const net = fetch(e.request).then(r => { if (r && r.ok) cache.put(e.request, r.clone()); return r; }).catch(() => null);
-      if (hit) { e.waitUntil(net); return hit; }
-      const r = await net;
-      return r || (e.request.mode === 'navigate' ? cache.match('./index.html') : Response.error());
-    })
-  );
+      return hit || (e.request.mode === 'navigate' ? cache.match('./index.html') : Response.error());
+    }
+  })());
 });
 
 // ── Estado compartido con la página (config + datos + último aviso) ──
