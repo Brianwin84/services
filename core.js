@@ -15,6 +15,10 @@
   function diffDias(d, base) { return Math.round((d - (base || hoy0())) / 86400000); }
   function num(v) { if (v === '' || v === null || v === undefined) return null; const n = Number(v); return isNaN(n) ? null : n; }
   function rowN(s) { const n = Number(s.idRow); return isNaN(n) ? Infinity : n; }
+  // Únicos ítems que vencen por TIEMPO; el resto vence solo por km/horas (si tiene km límite)
+  const VENCEN_POR_TIEMPO = ['cambio de aceite', 'filtro de aceite', 'filtro de aire'];
+  function vencePorTiempo(s) { return partes(s.tipo).some(p => VENCEN_POR_TIEMPO.includes(p.toLowerCase())); }
+  function proxFechaEf(s) { return vencePorTiempo(s) ? cleanFecha(s.proxFecha) : ''; }
   function partes(tipo) { return String(tipo || '').split('+').map(s => s.trim()).filter(Boolean); }
 
   /** km/hs actual: máximo entre el registrado y el de cualquier servicio */
@@ -61,7 +65,7 @@
     const unidad = hs ? 'hs' : 'km';
     const margen = hs ? (cfg.margenHs || 20) : (cfg.margenKm || 1000);
     const dAviso = cfg.diasAviso || 30;
-    const pf = parseFecha(s.proxFecha);
+    const pf = parseFecha(proxFechaEf(s));
     const dias = pf ? diffDias(pf) : null;
     const pk = num(s.proxKm);
     const act = kmActual(data, s.patente);
@@ -105,5 +109,5 @@
     return t.join(' · ');
   }
 
-  g.VTK = { normalPat, usaHoras, cleanFecha, parseFecha, diffDias, hoy0, num, partes, kmActual, activos, estado, alertas, textoEstado };
+  g.VTK = { vencePorTiempo, proxFechaEf, normalPat, usaHoras, cleanFecha, parseFecha, diffDias, hoy0, num, partes, kmActual, activos, estado, alertas, textoEstado };
 })(typeof self !== 'undefined' ? self : window);
